@@ -45,6 +45,7 @@ import org.sonar.ce.task.projectanalysis.component.TreeRootHolder;
 import org.sonar.ce.task.projectanalysis.measure.Measure;
 import org.sonar.ce.task.projectanalysis.measure.MeasureRepository;
 import org.sonar.ce.task.projectanalysis.metric.MetricRepository;
+import org.sonar.core.issue.DefaultIssue;
 import org.sonar.server.measure.Rating;
 
 import java.io.UnsupportedEncodingException;
@@ -151,11 +152,7 @@ public class AnalysisDetails {
 
         double coverage = findMeasure(CoreMetrics.COVERAGE_KEY).map(Measure::getDoubleValue).orElse(0D);
 
-        BigDecimal newDuplications = findQualityGateCondition(CoreMetrics.NEW_DUPLICATED_LINES_DENSITY_KEY)
-                .filter(condition -> condition.getStatus() != EvaluationStatus.NO_VALUE)
-                .map(QualityGate.Condition::getValue)
-                .map(BigDecimal::new)
-                .orElse(null);
+        BigDecimal newDuplications = getNewDuplications().orElse(null);
 
         double duplications =
                 findMeasure(CoreMetrics.DUPLICATED_LINES_DENSITY_KEY).map(Measure::getDoubleValue).orElse(0D);
@@ -330,7 +327,7 @@ public class AnalysisDetails {
         return qualityGate.getConditions().stream().filter(c -> metricKey.equals(c.getMetricKey())).findFirst();
     }
 
-    private Map<RuleType, Long> countRuleByType() {
+    public Map<RuleType, Long> countRuleByType() {
         return Arrays.stream(RuleType.values())
                 .collect(Collectors.toMap(
                         k -> k,
@@ -366,7 +363,7 @@ public class AnalysisDetails {
         }
     }
 
-    public List<DefaultIssue> getOpenIssues() {
+    public List<PostAnalysisIssueVisitor.LightIssue> getOpenIssues() {
         return postAnalysisIssueVisitor.getIssues()
                 .stream()
                 .map(PostAnalysisIssueVisitor.ComponentIssue::getIssue)
@@ -376,13 +373,6 @@ public class AnalysisDetails {
 
     public Optional<BigDecimal> getNewDuplications() {
         return findQualityGateCondition(CoreMetrics.NEW_DUPLICATED_LINES_DENSITY_KEY)
-                .filter(condition -> condition.getStatus() != EvaluationStatus.NO_VALUE)
-                .map(QualityGate.Condition::getValue)
-                .map(BigDecimal::new);
-    }
-
-    public Optional<BigDecimal> getNewCoverage(){
-        return findQualityGateCondition(CoreMetrics.NEW_COVERAGE_KEY)
                 .filter(condition -> condition.getStatus() != EvaluationStatus.NO_VALUE)
                 .map(QualityGate.Condition::getValue)
                 .map(BigDecimal::new);

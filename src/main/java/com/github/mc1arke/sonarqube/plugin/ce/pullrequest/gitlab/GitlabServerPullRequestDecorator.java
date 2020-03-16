@@ -116,12 +116,6 @@ public class GitlabServerPullRequestDecorator implements PullRequestBuildStatusD
                                     "Could not decorate Gitlab merge request. '%s' has not been set in scanner properties",
                                     PULLREQUEST_GITLAB_PROJECT_ID))));
             final String pullRequestId = analysis.getBranchName();
-
-            final boolean summaryCommentEnabled = Boolean.parseBoolean(unifyConfiguration.getRequiredServerProperty(PULL_REQUEST_COMMENT_SUMMARY_ENABLED));
-            final boolean fileCommentEnabled = Boolean.parseBoolean(unifyConfiguration.getRequiredServerProperty(PULL_REQUEST_FILE_COMMENT_ENABLED));
-            final boolean deleteCommentsEnabled = Boolean.parseBoolean(unifyConfiguration.getRequiredServerProperty(PULL_REQUEST_DELETE_COMMENTS_ENABLED));
-
-
             final String projectURL = apiURL + String.format("/projects/%s", URLEncoder
                     .encode(projectId, StandardCharsets.UTF_8.name()));
             final String userURL = apiURL + "/user";
@@ -181,12 +175,12 @@ public class GitlabServerPullRequestDecorator implements PullRequestBuildStatusD
             postStatus(new StringBuilder(statusUrl), headers, analysis, coverageValue);
 
             Optional<BigDecimal> duplications = analysis.getNewDuplications();
-            List<DefaultIssue> analysisOpenIssues = analysis.getOpenIssues();
+            List<PostAnalysisIssueVisitor.LightIssue> analysisOpenIssues = analysis.getOpenIssues();
             boolean hasDuplications = duplications.isPresent() && duplications.get().compareTo(BigDecimal.ZERO) > 0;
             boolean hasOpenIssues = analysisOpenIssues != null && analysisOpenIssues.size() > 0;
 
             String summaryCommentURL = hasDuplications || hasOpenIssues ? mergeRequestDiscussionURL : mergeRequestNoteURL;
-            postCommitComment(summaryCommentURL, headers, summaryContentParams, summaryCommentEnabled);
+            postCommitComment(summaryCommentURL, headers, summaryContentParams);
 
             for (PostAnalysisIssueVisitor.ComponentIssue issue : openIssues) {
                 String path = analysis.getSCMPathForIssue(issue).orElse(null);

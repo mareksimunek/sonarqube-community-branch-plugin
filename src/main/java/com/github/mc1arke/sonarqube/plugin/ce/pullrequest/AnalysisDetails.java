@@ -119,7 +119,7 @@ public class AnalysisDetails {
     public String getIssueUrl(String issueKey) {
         return publicRootURL + "/project/issues?id=" + encode(project.getKey()) + "&pullRequest=" + branchDetails.getBranchName() + "&issues=" + issueKey + "&open=" + issueKey;
     }
-    
+
     public Optional<String> getPullRequestBase() {
         return Optional.ofNullable(scannerContext.getProperties().get(SCANNERROPERTY_PULLREQUEST_BASE));
     }
@@ -164,7 +164,6 @@ public class AnalysisDetails {
 
         Map<RuleType, Long> issueCounts = countRuleByType();
         long issueTotal = issueCounts.values().stream().mapToLong(l -> l).sum();
-
         List<QualityGate.Condition> failedConditions = findFailedConditions();
 
         String baseImageUrl = getBaseImageUrl();
@@ -331,14 +330,15 @@ public class AnalysisDetails {
         return qualityGate.getConditions().stream().filter(c -> metricKey.equals(c.getMetricKey())).findFirst();
     }
 
-    public Map<RuleType, Long> countRuleByType() {
-        return Arrays.stream(RuleType.values()).collect(Collectors.toMap(k -> k,
-                                                                         k -> postAnalysisIssueVisitor.getIssues()
-                                                                                 .stream()
-                                                                                 .map(PostAnalysisIssueVisitor.ComponentIssue::getIssue)
-                                                                                 .filter(i -> !CLOSED_ISSUE_STATUS
-                                                                                         .contains(i.status()))
-                                                                                 .filter(i -> k == i.type()).count()));
+    private Map<RuleType, Long> countRuleByType() {
+        return Arrays.stream(RuleType.values())
+                .collect(Collectors.toMap(
+                        k -> k,
+                        k -> getOpenIssues().stream()
+                                .filter(i -> k == i.type())
+                                .count()
+                        )
+                );
     }
 
     private static String pluralOf(long value, String singleLabel, String multiLabel) {
@@ -364,6 +364,28 @@ public class AnalysisDetails {
                                  condition.getOperator() == QualityGate.Operator.GREATER_THAN ? "is greater than" :
                                  "is less than", condition.getErrorThreshold());
         }
+    }
+
+    public List<DefaultIssue> getOpenIssues() {
+        return postAnalysisIssueVisitor.getIssues()
+                .stream()
+                .map(PostAnalysisIssueVisitor.ComponentIssue::getIssue)
+                .filter(i -> !CLOSED_ISSUE_STATUS
+                        .contains(i.status())).collect(Collectors.toList());
+    }
+
+    public Optional<BigDecimal> getNewDuplications() {
+        return findQualityGateCondition(CoreMetrics.NEW_DUPLICATED_LINES_DENSITY_KEY)
+                .filter(condition -> condition.getStatus() != EvaluationStatus.NO_VALUE)
+                .map(QualityGate.Condition::getValue)
+                .map(BigDecimal::new);
+    }
+
+    public Optional<BigDecimal> getNewCoverage(){
+        return findQualityGateCondition(CoreMetrics.NEW_COVERAGE_KEY)
+                .filter(condition -> condition.getStatus() != EvaluationStatus.NO_VALUE)
+                .map(QualityGate.Condition::getValue)
+                .map(BigDecimal::new);
     }
 
     public Optional<BigDecimal> getNewCoverage(){
